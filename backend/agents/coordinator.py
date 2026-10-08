@@ -1,4 +1,5 @@
 from backend.models.state import RecruitmentState
+from backend.workflow import RecruitmentWorkflow
 
 
 class CoordinatorAgent:
@@ -8,6 +9,7 @@ class CoordinatorAgent:
 
     def __init__(self):
         self.name = "CoordinatorAgent"
+        self.workflow = RecruitmentWorkflow()
 
     def initialize_state(
         self,
@@ -36,7 +38,10 @@ class CoordinatorAgent:
         self,
         state: RecruitmentState
     ) -> RecruitmentState:
+        """
+        Start the recruitment workflow.
+        """
 
-        state["current_step"] = "coordinator_started"
+        state = self.workflow.start(state)
 
         return state

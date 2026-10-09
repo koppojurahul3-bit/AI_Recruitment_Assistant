@@ -3,7 +3,7 @@ from io import BytesIO
 from typing import Optional
 from uuid import uuid4
 
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
 
 from backend.models.candidate import Candidate
 from backend.repositories.candidate_repository import CandidateRepository

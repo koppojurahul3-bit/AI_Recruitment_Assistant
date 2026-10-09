@@ -1,8 +1,7 @@
 
 from unittest.mock import Mock
 
-import pytest
-
+from backend.models.candidate import Candidate
 from backend.repositories.candidate_repository import CandidateRepository
 from backend.repositories.sqlite_candidate_repository import (
     SQLiteCandidateRepository,
@@ -10,13 +9,17 @@ from backend.repositories.sqlite_candidate_repository import (
 from backend.services.candidate_intake_service import CandidateIntakeService
 
 
-def test_default_storage_uses_memory_repository():
-    ingestion = Mock()
+def test_default_service_uses_memory_repository_and_real_ingestion():
+    service = CandidateIntakeService()
 
-    service = CandidateIntakeService(ingestion_service=ingestion)
-
-    assert isinstance(service.repository, CandidateRepository)
-    service.close()
+    try:
+        assert isinstance(service.repository, CandidateRepository)
+        assert (
+            service.ingestion_service.candidate_repository
+            is service.repository
+        )
+    finally:
+        service.close()
 
 
 def test_sqlite_storage_uses_configured_database(tmp_path):
@@ -29,41 +32,70 @@ def test_sqlite_storage_uses_configured_database(tmp_path):
         ingestion_service=ingestion,
     )
 
-    assert isinstance(service.repository, SQLiteCandidateRepository)
-    service.close()
+    try:
+        assert isinstance(service.repository, SQLiteCandidateRepository)
+        assert service.repository is not None
+    finally:
+        service.close()
 
 
-def test_ingest_pdf_delegates_to_existing_service():
+def test_ingest_pdf_delegates_with_correct_arguments():
     ingestion = Mock()
-    ingestion.ingest_pdf.return_value = {"status": "processed"}
+    expected_candidate = Candidate(
+        candidate_id="candidate-001",
+        name="Test Candidate",
+    )
+    ingestion.ingest_pdf.return_value = expected_candidate
 
     service = CandidateIntakeService(ingestion_service=ingestion)
 
-    result = service.ingest_pdf(b"%PDF-test", filename="resume.pdf")
+    try:
+        result = service.ingest_pdf(
+            filename="resume.pdf",
+            file_bytes=b"%PDF-test",
+            candidate_id="candidate-001",
+        )
 
-    assert result == {"status": "processed"}
-    ingestion.ingest_pdf.assert_called_once_with(
-        b"%PDF-test",
-        filename="resume.pdf",
-    )
-    service.close()
+        assert result is expected_candidate
+        ingestion.ingest_pdf.assert_called_once_with(
+            filename="resume.pdf",
+            file_bytes=b"%PDF-test",
+            candidate_id="candidate-001",
+        )
+    finally:
+        service.close()
 
 
-def test_sqlite_repository_can_be_reopened(tmp_path):
+def test_sqlite_candidate_persists_after_reopening(tmp_path):
     database_path = tmp_path / "candidates.sqlite3"
 
     first = CandidateIntakeService(
         storage_backend="sqlite",
         database_path=database_path,
-        ingestion_service=Mock(),
     )
-    assert isinstance(first.repository, SQLiteCandidateRepository)
-    first.close()
+
+    candidate = Candidate(
+        candidate_id="persistent-001",
+        name="Persistent Candidate",
+        email="candidate@example.com",
+        skills=["Python", "NLP"],
+    )
+
+    try:
+        first.repository.add(candidate)
+    finally:
+        first.close()
 
     second = CandidateIntakeService(
         storage_backend="sqlite",
         database_path=database_path,
-        ingestion_service=Mock(),
     )
-    assert isinstance(second.repository, SQLiteCandidateRepository)
-    second.close()
+
+    try:
+        restored = second.repository.get_by_id("persistent-001")
+
+        assert restored is not None
+        assert restored.name == "Persistent Candidate"
+        assert restored.skills == ["Python", "NLP"]
+    finally:
+        second.close()

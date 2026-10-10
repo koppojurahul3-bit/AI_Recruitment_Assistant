@@ -1,10 +1,19 @@
+
+"""Typed shared state passed between recruitment agents."""
+
 from typing import Any, Dict, List, Optional, TypedDict
 
 
+class AgentTraceEvent(TypedDict, total=False):
+    """One recorded agent lifecycle event."""
+
+    agent: str
+    status: str
+    detail: str
+
+
 class RecruitmentState(TypedDict, total=False):
-    """
-    Shared state passed between recruitment agents.
-    """
+    """Shared state used throughout the recruitment workflow."""
 
     recruiter_goal: str
     job_description: str
@@ -24,5 +33,7 @@ class RecruitmentState(TypedDict, total=False):
 
     final_response: Optional[str]
     current_step: str
-
     errors: List[str]
+
+    # Added for Module 3 agent coordination and observability.
+    agent_trace: List[AgentTraceEvent]

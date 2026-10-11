@@ -1,16 +1,12 @@
 
+from copy import deepcopy
 from typing import Any, Dict
 
 from backend.models.state import RecruitmentState
 
 
 class ActionExecutionAgent:
-    """
-    Controls execution of approved recruitment actions.
-
-    This module uses simulated execution only. It does not contact
-    candidates or perform external recruitment operations.
-    """
+    """Executes approved recruitment actions in simulation mode only."""
 
     SUPPORTED_ACTIONS = {
         "send_interview_invitation",
@@ -28,42 +24,43 @@ class ActionExecutionAgent:
         state: RecruitmentState,
         action_id: str,
     ) -> RecruitmentState:
-        """
-        Execute an approved action in simulation mode.
-
-        An action must:
-        1. Exist in requested_actions.
-        2. Have status 'approved'.
-        3. Also exist in approved_actions.
-        4. Be supported by this execution agent.
-        5. Not have been completed already.
-        """
-
         state["current_step"] = "action_execution"
 
         try:
             if not isinstance(action_id, str) or not action_id.strip():
                 raise ValueError("A valid action ID is required.")
 
-            requested_actions = state.get("requested_actions", [])
-            approved_actions = state.get("approved_actions", [])
-            completed_actions = state.get("completed_actions", [])
+            requested = state.get("requested_actions", [])
+            approvals = state.get("approved_actions", [])
+            completed = state.get("completed_actions", [])
 
-            action = next(
-                (
-                    item
-                    for item in requested_actions
-                    if item.get("action_id") == action_id
-                ),
-                None,
-            )
+            if not all(
+                isinstance(records, list)
+                for records in (requested, approvals, completed)
+            ):
+                raise ValueError("Action records must be lists.")
 
-            if action is None:
+            matching_requests = [
+                item
+                for item in requested
+                if isinstance(item, dict)
+                and item.get("action_id") == action_id
+            ]
+
+            if not matching_requests:
                 raise ValueError("Action was not found.")
 
+            if len(matching_requests) != 1:
+                raise ValueError(
+                    "Execution blocked: expected exactly one requested action."
+                )
+
+            action = matching_requests[0]
+
             if any(
-                item.get("action_id") == action_id
-                for item in completed_actions
+                isinstance(item, dict)
+                and item.get("action_id") == action_id
+                for item in completed
             ):
                 raise ValueError("Action has already been completed.")
 
@@ -72,40 +69,63 @@ class ActionExecutionAgent:
                     "Execution blocked: action is not approved."
                 )
 
-            approved_record = next(
-                (
-                    item
-                    for item in approved_actions
-                    if item.get("action_id") == action_id
-                    and item.get("status") == "approved"
-                ),
-                None,
-            )
-
-            if approved_record is None:
-                raise PermissionError(
-                    "Execution blocked: no valid approval record exists."
-                )
-
-            action_type = action.get("action_type")
-
-            if action_type not in self.SUPPORTED_ACTIONS:
-                raise ValueError(
-                    f"Unsupported action type: {action_type}"
-                )
-
-            if not action.get("candidate_id"):
+            # Validate the candidate before comparing the approval snapshot.
+            if not isinstance(action.get("candidate_id"), str) or not (
+                action["candidate_id"].strip()
+            ):
                 raise ValueError(
                     "Execution blocked: candidate ID is missing."
                 )
 
-            # Simulation only: no external operation is performed.
-            completed_record: Dict[str, Any] = {
-                **action,
-                "status": "completed",
-                "execution_mode": "simulated",
-                "external_operation_performed": False,
-            }
+            matching_approvals = [
+                item
+                for item in approvals
+                if isinstance(item, dict)
+                and item.get("action_id") == action_id
+                and item.get("status") == "approved"
+            ]
+
+            if len(matching_approvals) == 0:
+                raise PermissionError(
+                    "Execution blocked: no valid approval record exists."
+                )
+
+            if len(matching_approvals) != 1:
+                raise PermissionError(
+                    "Execution blocked: multiple approval records exist."
+                )
+
+            approval = matching_approvals[0]
+
+            # Ensure the approved action has not been modified.
+            for field in ("action_type", "candidate_id", "details"):
+                if approval.get(field) != action.get(field):
+                    raise PermissionError(
+                        "Execution blocked: approval and request "
+                        f"disagree on {field}."
+                    )
+
+            if not isinstance(approval.get("approved_by"), str) or not (
+                approval["approved_by"].strip()
+            ):
+                raise PermissionError(
+                    "Execution blocked: approval reviewer identity is missing."
+                )
+
+            if action.get("action_type") not in self.SUPPORTED_ACTIONS:
+                raise ValueError(
+                    f"Unsupported action type: {action.get('action_type')}"
+                )
+
+            # Simulation only: no email, calendar, or external operation.
+            completed_record: Dict[str, Any] = deepcopy(action)
+            completed_record.update(
+                {
+                    "status": "completed",
+                    "execution_mode": "simulated",
+                    "external_operation_performed": False,
+                }
+            )
 
             action["status"] = "completed"
             action["execution_mode"] = "simulated"
@@ -118,7 +138,7 @@ class ActionExecutionAgent:
             state["current_step"] = "action_execution_completed"
             return state
 
-        except (ValueError, PermissionError) as exc:
+        except (ValueError, PermissionError, TypeError) as exc:
             state.setdefault("errors", []).append(str(exc))
             state["current_step"] = "action_execution_blocked"
             return state

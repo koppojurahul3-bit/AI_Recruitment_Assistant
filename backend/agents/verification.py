@@ -1,17 +1,11 @@
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from backend.models.state import RecruitmentState
 
 
 class ExecutionVerificationAgent:
-    """
-    Verifies consistency between requested, approved, and completed
-    recruitment action records.
-
-    Verification checks stored evidence only. It does not claim that
-    an external email or calendar operation actually occurred.
-    """
+    """Verifies stored action, approval, and completion evidence."""
 
     def __init__(self):
         self.name = "ExecutionVerificationAgent"
@@ -21,23 +15,22 @@ class ExecutionVerificationAgent:
         state: RecruitmentState,
         action_id: str,
     ) -> Dict[str, Any]:
-        """Verify one action against the records in RecruitmentState."""
-
         if not isinstance(action_id, str) or not action_id.strip():
             raise ValueError("A valid action ID is required.")
 
         requested = [
             item for item in state.get("requested_actions", [])
-            if item.get("action_id") == action_id
+            if isinstance(item, dict) and item.get("action_id") == action_id
         ]
         approved = [
             item for item in state.get("approved_actions", [])
-            if item.get("action_id") == action_id
+            if isinstance(item, dict)
+            and item.get("action_id") == action_id
             and item.get("status") == "approved"
         ]
         completed = [
             item for item in state.get("completed_actions", [])
-            if item.get("action_id") == action_id
+            if isinstance(item, dict) and item.get("action_id") == action_id
         ]
 
         issues: List[str] = []
@@ -46,32 +39,42 @@ class ExecutionVerificationAgent:
             issues.append(
                 "Expected exactly one matching requested action record."
             )
-
+        if len(approved) != 1:
+            issues.append("Expected exactly one valid approval record.")
         if len(completed) != 1:
             issues.append(
                 "Expected exactly one matching completed action record."
             )
 
-        if len(approved) != 1:
-            issues.append(
-                "Expected exactly one valid approval record."
-            )
+        if len(requested) == 1 and len(approved) == 1:
+            request = requested[0]
+            approval = approved[0]
+
+            for field in ("action_type", "candidate_id", "details"):
+                if request.get(field) != approval.get(field):
+                    issues.append(
+                        f"Approval and requested records disagree on {field}."
+                    )
+
+            if not isinstance(approval.get("approved_by"), str) or not (
+                approval["approved_by"].strip()
+            ):
+                issues.append("Approval reviewer identity is missing.")
+
+            if not isinstance(approval.get("decision_reason"), str):
+                issues.append("Approval decision reason is invalid.")
 
         if len(requested) == 1 and len(completed) == 1:
             request = requested[0]
             completion = completed[0]
 
             if request.get("status") != "completed":
-                issues.append(
-                    "Requested action status is not completed."
-                )
+                issues.append("Requested action status is not completed.")
 
             if completion.get("status") != "completed":
-                issues.append(
-                    "Completion record status is not completed."
-                )
+                issues.append("Completion record status is not completed.")
 
-            for field in ("action_type", "candidate_id"):
+            for field in ("action_type", "candidate_id", "details"):
                 if request.get(field) != completion.get(field):
                     issues.append(
                         f"Requested and completed records disagree on {field}."
@@ -88,21 +91,6 @@ class ExecutionVerificationAgent:
                     "for this simulation-only module."
                 )
 
-        if len(approved) == 1 and len(requested) == 1:
-            approval = approved[0]
-            request = requested[0]
-
-            for field in ("action_type", "candidate_id"):
-                if approval.get(field) != request.get(field):
-                    issues.append(
-                        f"Approval and requested records disagree on {field}."
-                    )
-
-            if not approval.get("approved_by"):
-                issues.append(
-                    "Approval reviewer identity is missing."
-                )
-
         return {
             "action_id": action_id,
             "status": "verified" if not issues else "failed",
@@ -116,20 +104,18 @@ class ExecutionVerificationAgent:
             "verification_scope": "stored_records_only",
         }
 
-    def verify_all(
-        self,
-        state: RecruitmentState,
-    ) -> RecruitmentState:
-        """Verify every recorded completion and save the verification report."""
-
+    def verify_all(self, state: RecruitmentState) -> RecruitmentState:
         state["current_step"] = "verification"
 
         try:
             completed_actions = state.get("completed_actions", [])
+            if not isinstance(completed_actions, list):
+                raise TypeError("Completed action records must be a list.")
+
             action_ids = [
-                action.get("action_id")
-                for action in completed_actions
-                if action.get("action_id")
+                item.get("action_id")
+                for item in completed_actions
+                if isinstance(item, dict) and item.get("action_id")
             ]
 
             results = [
@@ -143,10 +129,9 @@ class ExecutionVerificationAgent:
                 if all(result["verified"] for result in results)
                 else "verification_failed"
             )
-
             return state
 
-        except Exception as exc:
+        except (ValueError, TypeError, KeyError) as exc:
             state.setdefault("errors", []).append(str(exc))
             state["current_step"] = "verification_failed"
             return state

@@ -126,8 +126,12 @@ def _ollama_request(path: str, payload: dict[str, Any] | None = None,
         ) from exc
 
 
-def _ollama_chat(system_prompt: str, user_prompt: str,
-                 timeout: int = 180) -> str:
+def _ollama_chat(
+    system_prompt: str,
+    user_prompt: str,
+    timeout: int = 180,
+    format_json: bool = False,
+) -> str:
     """Generate a response using the configured local model."""
     response = _ollama_request(
         "/api/chat",
@@ -139,6 +143,7 @@ def _ollama_chat(system_prompt: str, user_prompt: str,
                 {"role": "user", "content": user_prompt},
             ],
             "options": {"temperature": 0.2},
+            **({"format": "json"} if format_json else {}),
         },
         timeout=timeout,
     )
@@ -456,7 +461,11 @@ def generate_interview_questions(request: InterviewQuestionRequest):
     )
 
     try:
-        raw = _ollama_chat(system_prompt, user_prompt)
+        raw = _ollama_chat(
+            system_prompt,
+            user_prompt,
+            format_json=True,
+        )
         parsed = _parse_json_response(raw)
 
         if isinstance(parsed, dict):

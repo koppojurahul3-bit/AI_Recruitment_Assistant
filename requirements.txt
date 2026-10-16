@@ -3,3 +3,6 @@ pandas
 pypdf
 reportlab
 sentence-transformers
+fastapi
+uvicorn[standard]
+python-multipart

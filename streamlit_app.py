@@ -2,11 +2,21 @@ import streamlit as st
 import analyzer
 import pandas as pd
 import time
+from backend.services.frontend_integration_service import (
+    FrontendIntegrationService,
+)
 
 
 # ============================================================
 # PAGE CONFIGURATION
 # ============================================================
+
+@st.cache_resource
+def get_frontend_integration_service():
+    return FrontendIntegrationService(
+        storage_backend="sqlite",
+        database_path="data/candidates.sqlite3",
+    )
 
 st.set_page_config(
     page_title="AI Recruitment Assistant",
@@ -20,35 +30,139 @@ st.set_page_config(
 # GLOBAL STYLING
 # ============================================================
 
+
 st.markdown(
     """
     <style>
+    :root {
+        --brand: #4f46e5;
+        --ink: #172033;
+        --muted: #64748b;
+        --line: #e5eaf2;
+        --surface: #ffffff;
+        --canvas: #f6f8fc;
+    }
 
+    /* Main background */
     .stApp {
-        background-color: #0B1120;
+        background: var(--canvas);
+        color: var(--ink);
     }
 
-    section[data-testid="stSidebar"] {
-        background-color: #07101F;
-    }
-
-    div[data-testid="stMetric"] {
-        background-color: #111827;
-        border: 1px solid #1E293B;
-        border-radius: 12px;
-        padding: 15px;
+    [data-testid="stHeader"] {
+        background: rgba(246, 248, 252, 0.95);
     }
 
     .block-container {
-        max-width: 1400px;
-        padding-top: 2rem;
-        padding-bottom: 3rem;
+        max-width: 1440px;
+        padding: 2rem 2.5rem 3rem;
     }
 
+    /* Headings and text */
+    h1, h2, h3, h4 {
+        color: var(--ink) !important;
+        letter-spacing: -0.02em;
+    }
+
+    [data-testid="stCaptionContainer"] {
+        color: var(--muted);
+    }
+
+    /* Dark navy sidebar */
+    section[data-testid="stSidebar"] {
+        background: #111827;
+        border-right: 1px solid #263244;
+    }
+
+    section[data-testid="stSidebar"] * {
+        color: #e5e7eb;
+    }
+
+    section[data-testid="stSidebar"] [role="radio"] {
+        border-radius: 9px;
+        padding: 0.6rem 0.75rem;
+    }
+
+    section[data-testid="stSidebar"] [role="radio"]:hover {
+        background: #263244;
+    }
+
+    /* Metric cards */
+    div[data-testid="stMetric"] {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1rem 1.2rem;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+    }
+
+    [data-testid="stMetricLabel"] {
+        color: var(--muted);
+    }
+
+    [data-testid="stMetricValue"] {
+        color: var(--ink);
+        font-weight: 700;
+    }
+
+    /* Buttons */
+    .stButton > button,
+    .stDownloadButton > button {
+        border-radius: 9px;
+        font-weight: 600;
+        min-height: 2.5rem;
+    }
+
+    .stButton > button[kind="primary"] {
+        background: var(--brand);
+        color: white;
+        border-color: var(--brand);
+    }
+
+    /* Uploaders */
+    [data-testid="stFileUploader"] {
+        background: var(--surface);
+        border: 1px dashed #c7cfe0;
+        border-radius: 12px;
+        padding: 0.6rem;
+    }
+
+    /* Input fields */
+    .stTextInput input,
+    .stTextArea textarea {
+        background: white;
+        border-radius: 9px;
+        border-color: #dbe2ed;
+    }
+
+    /* Data tables */
+    [data-testid="stDataFrame"] {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    /* Containers and expanders */
+    [data-testid="stVerticalBlockBorderWrapper"],
+    [data-testid="stExpander"] {
+        border-color: var(--line);
+        border-radius: 12px;
+    }
+
+    hr {
+        border-color: var(--line);
+    }
+
+    @media (max-width: 900px) {
+        .block-container {
+            padding: 1.25rem 1rem 2rem;
+        }
+    }
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
+
 
 
 # ============================================================
@@ -68,33 +182,96 @@ page = st.sidebar.radio(
     ]
 )
 
-
-# ============================================================
-# HEADER
-# ============================================================
-
-st.title("🤖 AI Recruitment Assistant")
-
-st.write(
-    "Upload resumes and a Job Description to rank candidates, "
-    "evaluate skills, and generate AI-powered hiring recommendations."
-)
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Recruitment Workspace")
+st.sidebar.caption("AI-powered hiring and candidate intelligence")
 
 
 # ============================================================
-# FILE UPLOAD
+# PAGE HEADER
 # ============================================================
 
-uploaded_files = st.file_uploader(
-    "Upload Resume(s) (PDF)",
-    type=["pdf"],
-    accept_multiple_files=True
-)
+st.title("AI Recruitment Assistant")
 
-job_file = st.file_uploader(
-    "Upload Job Description (PDF)",
-    type=["pdf"]
-)
+if page == "🏠 Dashboard":
+    st.caption("Your hiring pipeline at a glance.")
+elif page == "👥 Candidates":
+    st.caption("Search, compare, and review candidate profiles.")
+elif page == "💼 Jobs":
+    st.caption("Review job requirements and candidate matches.")
+elif page == "📄 Resume Analysis":
+    st.caption("Upload resumes and a job description to evaluate candidates.")
+elif page == "📊 Reports":
+    st.caption("Review and export recruitment reports.")
+elif page == "📈 Analytics":
+    st.caption("Explore recruitment performance and hiring trends.")
+elif page == "⚙️ Settings":
+    st.caption("Manage your recruitment workspace.")
+
+
+# ============================================================
+# PERSIST UPLOADS ACROSS PAGE NAVIGATION
+# ============================================================
+
+def save_resume_uploads():
+    st.session_state["saved_uploaded_files"] = (
+        st.session_state.get("resume_upload_widget") or []
+    )
+
+
+def save_job_upload():
+    st.session_state["saved_job_file"] = (
+        st.session_state.get("job_upload_widget")
+    )
+
+
+# ============================================================
+# RESUME ANALYSIS UPLOADS — ONLY ON THIS PAGE
+# ============================================================
+
+if page == "📄 Resume Analysis":
+    st.markdown("## Start a candidate analysis")
+    st.write(
+        "Upload one or more candidate resumes and the job description "
+        "you want to evaluate."
+    )
+
+    upload_col, job_col = st.columns(2, gap="large")
+
+    with upload_col:
+        st.markdown("### Candidate resumes")
+        st.file_uploader(
+            "Upload resume PDFs",
+            type=["pdf"],
+            accept_multiple_files=True,
+            key="resume_upload_widget",
+            on_change=save_resume_uploads,
+        )
+
+    with job_col:
+        st.markdown("### Job description")
+        st.file_uploader(
+            "Upload job-description PDF",
+            type=["pdf"],
+            key="job_upload_widget",
+            on_change=save_job_upload,
+        )
+
+    st.caption("Supported format: PDF")
+
+    if st.button("Clear uploaded files", key="clear_resume_uploads"):
+        st.session_state["saved_uploaded_files"] = []
+        st.session_state["saved_job_file"] = None
+        st.rerun()
+
+
+# ============================================================
+# ACTIVE FILES USED BY THE EXISTING ANALYZER
+# ============================================================
+
+uploaded_files = st.session_state.get("saved_uploaded_files", [])
+job_file = st.session_state.get("saved_job_file")
+
 
 
 # ============================================================
@@ -133,6 +310,34 @@ if uploaded_files and job_file:
         job_keywords = analyzer.extract_job_skills(
             job_description
         )
+
+        # ----------------------------------------------------
+        # ADVANCED BACKEND INTEGRATION
+        # ----------------------------------------------------
+
+        advanced_analysis = None
+
+        try:
+            integration_service = get_frontend_integration_service()
+
+            uploads = [
+                (uploaded_file.name, uploaded_file.getvalue())
+                for uploaded_file in uploaded_files
+            ]
+
+            candidates = integration_service.ingest_resumes(uploads)
+
+            advanced_analysis = integration_service.analyze_candidates(
+                candidates=candidates,
+                job_description=job_description,
+            )
+
+        except Exception as exc:
+            st.warning(
+                "Advanced backend matching could not complete. "
+                "Your existing analyzer will continue to run."
+            )
+            st.caption(f"Integration detail: {exc}")
 
         # ----------------------------------------------------
         # PROCESS RESUMES
@@ -541,6 +746,81 @@ if page == "🏠 Dashboard":
             f"✅ Analysis completed in {processing_time} seconds"
         )
 
+
+        # ----------------------------------------------------
+        # ADVANCED BACKEND MATCHING RESULTS
+        # ----------------------------------------------------
+
+        if advanced_analysis is not None:
+            st.divider()
+            st.header("Advanced Backend Matching")
+
+            st.caption(
+                "Scores below come from the backend matching service, "
+                "not the legacy analyzer."
+            )
+
+            st.metric(
+                "Candidates evaluated by backend",
+                advanced_analysis["total_candidates"],
+            )
+
+            st.subheader("Backend Candidate Rankings")
+
+            advanced_df = pd.DataFrame(
+                advanced_analysis["results"]
+            )
+
+            display_columns = [
+                "rank",
+                "name",
+                "overall_score",
+                "skill_match_score",
+                "experience_match_score",
+                "education_match_score",
+                "recommendation",
+            ]
+
+            st.dataframe(
+                advanced_df[display_columns],
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            st.subheader("Candidate Skill Comparison")
+
+            for candidate_result in advanced_analysis["results"]:
+                with st.expander(
+                    f"#{candidate_result['rank']} — "
+                    f"{candidate_result['name']} "
+                    f"({candidate_result['overall_score']:.1f}/100)"
+                ):
+                    st.write(
+                        "**Matched skills:**",
+                        ", ".join(candidate_result["matched_skills"]) or "None",
+                    )
+                    st.write(
+                        "**Missing skills:**",
+                        ", ".join(candidate_result["missing_skills"]) or "None",
+                    )
+                    st.write(
+                        "**Recommendation:**",
+                        candidate_result["recommendation"],
+                    )
+
+            st.subheader("Job Requirements Detected by Backend")
+
+            st.write(
+                "**Required skills:**",
+                ", ".join(
+                    advanced_analysis["requirements"]["required_skills"]
+                ) or "None detected",
+            )
+            st.write(
+                "**Minimum experience:**",
+                advanced_analysis["requirements"]["minimum_experience_years"],
+                "years",
+            )
 
 # ============================================================
 # CANDIDATES PAGE

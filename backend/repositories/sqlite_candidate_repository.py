@@ -36,7 +36,10 @@ class SQLiteCandidateRepository:
             path = str(resolved_path)
 
         self.database_path = path
-        self._connection = sqlite3.connect(path)
+        self._connection = sqlite3.connect(
+            path,
+            check_same_thread=False,
+        )
         self._connection.row_factory = sqlite3.Row
 
         try:

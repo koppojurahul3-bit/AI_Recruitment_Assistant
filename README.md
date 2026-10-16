@@ -1,304 +1,166 @@
-# 🤖 AI Recruitment Assistant
+# AI Recruitment Assistant — V2
 
-An AI-powered recruitment platform that analyzes resumes, evaluates candidates against job descriptions, ranks applicants, and provides intelligent hiring recommendations through an interactive Streamlit dashboard.
+An AI-assisted recruitment workspace for resume screening, candidate matching, interview preparation, scheduling, and recruitment reporting. V2 adds a React frontend backed by a FastAPI API while retaining the existing Streamlit application.
 
-## 🚀 Live Demo
+> **Current development version:** `v2-development`  
+> **V1:** preserved on `main`. V2 has not been merged into `main`.
 
-🔗 https://ai-recruitment-assistant-rahul.streamlit.app
+## Overview
 
-## 📌 Overview
+Recruiters can analyze PDF resumes against a job description, review candidate matches and rankings, inspect recruitment analytics, prepare interview questions, manage interview schedule records, and export candidate reports. The React interface communicates with a local FastAPI service. Optional AI-assisted features use a locally running Ollama model.
 
-AI Recruitment Assistant is a resume screening and candidate evaluation system designed to help recruiters reduce manual screening effort.
+## Features
 
-The application accepts multiple PDF resumes and a Job Description, extracts relevant candidate information, evaluates technical skills, calculates ATS compatibility, measures resume-to-job matching, ranks candidates, and generates hiring recommendations.
+- PDF resume and job-description analysis
+- Candidate skill extraction, ATS-style scoring, matching, and ranking
+- Candidate review and recruitment analytics
+- Interview question generation and written-answer evaluation
+- Interview schedule records
+- Recruiter question answering and recruitment task assistance through Ollama
+- Candidate report export (CSV)
+- React dashboard with FastAPI integration
+- Existing Streamlit interface retained for compatibility
 
-## ✨ Features
+Feature availability depends on the selected interface, installed dependencies, and whether Ollama is running.
 
-- 📄 Multiple PDF resume upload
-- 💼 Job Description analysis
-- 🧠 AI-powered skill extraction
-- 🎯 ATS score calculation
-- 📊 Resume-to-job matching
-- 🏆 Candidate ranking
-- 👤 Individual candidate profiles
-- 📧 Contact information extraction
-- 🎓 Education extraction
-- 💼 Experience extraction
-- 🚀 Project extraction
-- 🏅 Certification detection
-- 🧠 Soft-skill detection
-- 💪 Candidate strengths analysis
-- ⚠️ Areas for improvement
-- 💡 AI-generated suggestions
-- 🤖 Hiring recommendations
-- 📝 AI candidate summaries
-- 📄 PDF candidate reports
-- 📊 CSV recruitment reports
-- 📈 Recruitment analytics dashboard
-- 🔎 Candidate search and filtering
-- ⚙️ Recruitment settings
-- 🌐 Streamlit Cloud deployment
+## Tech stack
 
-## 🏗️ Application Architecture
+- **Frontend:** React, Vite, JavaScript, Tailwind CSS, Recharts, Framer Motion
+- **API:** Python, FastAPI, Uvicorn
+- **Resume and reporting:** pypdf, pandas, ReportLab
+- **AI runtime (optional):** Ollama with a locally installed model
+- **Testing:** pytest
+
+## Architecture
 
 ```text
-                 ┌─────────────────────┐
-                 │     Recruiter       │
-                 └──────────┬──────────┘
-                            │
-                            ▼
-                ┌──────────────────────┐
-                │   Streamlit UI       │
-                └──────────┬───────────┘
-                           │
-             ┌─────────────┴─────────────┐
-             │                           │
-             ▼                           ▼
-      Resume PDF(s)                Job Description
-             │                           │
-             ▼                           ▼
-      Text Extraction             Skill Extraction
-             │                           │
-             └─────────────┬─────────────┘
-                           ▼
-                 ┌─────────────────────┐
-                 │ Candidate Analysis  │
-                 └──────────┬──────────┘
-                            │
-          ┌─────────────────┼─────────────────┐
-          │                 │                 │
-          ▼                 ▼                 ▼
-      ATS Score       Resume Match      Skill Analysis
-          │                 │                 │
-          └─────────────────┼─────────────────┘
-                            ▼
-                 Candidate Score & Ranking
-                            │
-                            ▼
-                  Hiring Recommendation
-                            │
-              ┌─────────────┴─────────────┐
-              ▼                           ▼
-        PDF Report                  CSV Report
+Recruiter
+   |
+   v
+React + Vite frontend (port 5173/5174)
+   |
+   v
+FastAPI backend (127.0.0.1:8765)
+   |                         |
+   v                         v
+Resume analysis/services    Ollama (optional, local)
+   |
+   v
+Candidate matching, ranking, reports and schedule data
+```
 
+The application stores runtime data locally. Generated databases and local environment files are intentionally excluded from Git.
 
+## Requirements
 
-🛠️ Tech Stack
-Programming : Python
+- Python 3.13 recommended (the project test suite was run using Python 3.13.14)
+- Node.js and npm
+- Git
+- Optional: [Ollama](https://ollama.com/) and a locally installed model for AI assistant, voice-recruiter, and agent features
 
-Frontend : StreamlitHTML/CSS styling
+## Setup and run (Windows PowerShell)
 
-Data Processing : Pandas , PyPDF2
+Clone the repository and switch to V2:
 
-NLP / AI :
-Sentence Transformers 
-Semantic embeddings
-Resume skill extraction
-Job description analysis
-
-Reporting :
-ReportLab
-CSV generation
-
-Deployment :
-GitHub
-Streamlit Community Cloud
-
-📂 Project Structure :
-
-AI_Recruitment_Assistant/
-│
-├── analyzer.py
-├── streamlit_app.py
-├── requirements.txt
-├── sample_resume.pdf
-├── .gitignore
-└── README.md
-
-⚙️ Installation
-
-Clone the repository:
-
+```powershell
 git clone https://github.com/koppojurahul3-bit/AI_Recruitment_Assistant.git
-
-Move into the project directory:
-
 cd AI_Recruitment_Assistant
+git switch v2-development
+```
 
-Create a virtual environment:
+Create and activate a Python environment:
 
+```powershell
 python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
 
-Activate the environment on Windows:
+Install frontend dependencies:
 
-.venv\Scripts\activate
+```powershell
+cd frontend
+npm install
+cd ..
+```
 
-Install dependencies:
+### Start the API
 
-pip install -r requirements.txt
+In the project root, run:
 
-Run the application:
+```powershell
+python -m uvicorn api_server:app --host 127.0.0.1 --port 8765
+```
 
-streamlit run streamlit_app.py
+The API documentation is available locally at [http://127.0.0.1:8765/docs](http://127.0.0.1:8765/docs).
 
-The application will open in your browser.
+### Start the frontend
 
+Open a second terminal, activate the same virtual environment only if needed for your workflow, then run:
 
+```powershell
+cd frontend
+npm run dev
+```
 
-📊 Candidate Evaluation
+Open the local URL printed by Vite (typically http://localhost:5173). The frontend defaults to the API at `http://127.0.0.1:8765`. To override it, create `frontend/.env.local` with:
 
-The platform evaluates candidates using multiple signals including:
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8765
+```
 
-ATS compatibility
-Resume-to-job similarity
-Required technical skills
-Missing skills
-Projects
-Certifications
-Experience
-Education
-Soft skills
+Do not commit local environment files or secrets.
 
-These signals are combined to produce an overall candidate score and hiring recommendation.
+### Optional: enable Ollama features
 
+Install and start Ollama, then make sure the model you configure is available locally. The API defaults to `OLLAMA_URL=http://127.0.0.1:11434` and `OLLAMA_MODEL=llama3.2:latest`. These can be overridden with environment variables before starting the API. Ollama is not required for every resume-analysis or reporting workflow, but AI-assisted endpoints need it.
 
+## Tests
 
-📄 Reports
+Activate the project virtual environment and run from the repository root:
 
-Recruiters can generate:
+```powershell
+python -m pytest -q
+```
 
-Candidate PDF reports
-Recruitment CSV reports
+**Latest local verification:** 258 tests passed. Test results describe the local development environment; run the suite in your own environment to verify your setup.
 
-The reports contain candidate scores, ranking information, extracted details, skills, recommendations, and analysis.
+## Project structure
 
+```text
+AI_Recruitment_Assistant/
+├── analyzer.py
+├── api_server.py
+├── streamlit_app.py
+├── backend/
+│   ├── repositories/
+│   └── services/
+├── tests/
+├── frontend/
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.js
+├── requirements.txt
+└── README.md
+```
 
+## Security and data notes
 
-🎯 Use Cases
+- Keep `.env` files, API credentials, uploaded resumes, and generated databases out of version control.
+- Resume documents may contain personal information. Use synthetic or consented data when testing and avoid publishing real candidate information.
+- This is a decision-support tool. Recruiters should independently review candidate information and make hiring decisions; automated scores should not be treated as the sole basis for employment decisions.
 
-This platform can be used for:
+## Roadmap
 
-Resume screening
-Campus recruitment
-Technical hiring
-Candidate shortlisting
-Recruitment analytics
-Automated candidate evaluation
-HR screening workflows
+- Deploy a public V2 demo with documented configuration
+- Add screenshots and a short product walkthrough
+- Continue improving automated integration coverage and setup documentation
 
+## Author
 
-🔮 Future Improvements
-Multi-agent recruitment architecture
-Interview question generation
-AI voice interviews
-Automated interview evaluation
-Email automation
-Calendar scheduling
-Recruiter authentication
-Database-backed candidate storage
-Advanced RAG-based candidate search
-LLM-powered recruitment assistant
-
-👨‍💻 Author
-
-Rahul
-
-AI / ML Developer
-
-GitHub: https://github.com/koppojurahul3-bit
-
-
-⭐ Project
-
-If you find this project useful, consider giving the repository a ⭐.
-
-
-### After pasting
-
-Click **Commit changes**.
-
-That's your GitHub documentation done. ✅
+Rahul — [GitHub profile](https://github.com/koppojurahul3-bit)
 
 ---
 
-# 2. Add it to LinkedIn
-
-For LinkedIn, I recommend putting it in **Projects** and also **Featured**.
-
-LinkedIn currently lets you add a Projects section through **Add profile section → Recommended → Projects**. For a newly added project, LinkedIn says the old Project URL field may not appear; instead use **Add media → Add a link**. :contentReference[oaicite:1]{index=1}
-
-### Go to your profile
-
-:contentReference[oaicite:2]{index=2}
-
-Then:
-
-**Me → View Profile → Add profile section → Recommended → Projects**
-
-Create:
-
-### Project Name
-
-```text
-AI Recruitment Assistant
-Description
-
-Copy this:
-
-Built an AI-powered recruitment platform using Python and Streamlit to automate resume screening and candidate evaluation.
-
-The system accepts multiple PDF resumes and a Job Description, extracts candidate information, calculates ATS scores, performs semantic resume-to-job matching, analyzes skills, ranks candidates, and generates AI-powered hiring recommendations.
-
-Key features include candidate profiles, ATS scoring, resume matching, skill-gap analysis, candidate ranking, PDF/CSV reporting, recruitment analytics, and an interactive recruiter dashboard.
-
-Tech Stack:
-Python, Streamlit, Pandas, PyPDF2, Sentence Transformers, ReportLab, NLP, GitHub, Streamlit Cloud.
-
-Live Demo:
-https://ai-recruitment-assistant-rahul.streamlit.app
-Dates
-
-Since you just completed it, use the month/year when you started and finished the project.
-
-If LinkedIn asks whether it's ongoing, don't mark it ongoing if you're treating this version as completed.
-
-3. Add the links
-
-For the project, use Add media → Add a link and add:
-
-Live Demo
-https://ai-recruitment-assistant-rahul.streamlit.app
-
-Title:
-
-Live Demo — AI Recruitment Assistant
-
-Then add another link:
-
-https://github.com/koppojurahul3-bit/AI_Recruitment_Assistant
-
-Title:
-
-GitHub — AI Recruitment Assistant
-
-LinkedIn specifically recommends using Add media → Add a link for project links when the Project URL field isn't available.
-
-4. Put it in Featured too 🔥
-
-This is important because recruiters will see it much earlier on your profile.
-
-Go to:
-
-Profile → Featured → + → Add a link
-
-Add your deployed application:
-
-https://ai-recruitment-assistant-rahul.streamlit.app
-
-Title:
-
-AI Recruitment Assistant — Live Demo
-
-You can also add the GitHub repository as another Featured item.
-
-LinkedIn's Featured section is designed specifically to highlight important work and can feature Projects and other profile content.
+V2 source: [`v2-development` branch](https://github.com/koppojurahul3-bit/AI_Recruitment_Assistant/tree/v2-development)

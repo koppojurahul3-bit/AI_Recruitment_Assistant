@@ -2,9 +2,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity, AlertCircle, ArrowDownToLine, ArrowRight, BarChart3,
-  Bot, BriefcaseBusiness, CalendarDays, Check, CheckCircle2,
+  Bot, CalendarDays, CheckCircle2,
   ChevronRight, ClipboardCheck, Clock3, FileSearch, FileText,
-  Gauge, LayoutDashboard, LoaderCircle, Menu, Mic, Network,
+  Gauge, LayoutDashboard, LoaderCircle, Menu, Mic,
   RefreshCw, Search, Settings2, ShieldCheck, Sparkles, Target,
   Trash2, Users, Workflow, X, Volume2, WandSparkles,
 } from "lucide-react";
@@ -932,7 +932,11 @@ function SchedulePage() {
   }, []);
 
   useEffect(() => {
-    void loadSchedule();
+    const timeoutId = setTimeout(() => {
+      void loadSchedule();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
   }, [loadSchedule]);
 
   async function saveInterview(event) {
@@ -1507,7 +1511,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void refreshStatus();
+    const timeoutId = setTimeout(() => {
+      void refreshStatus();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
   }, [refreshStatus]);
 
   useEffect(() => {
